@@ -8,6 +8,7 @@ class Client():
     def __init__(self, sendQueue, receiveQueue):
         # Create a thread that runs a socket
         self.playerName = None
+        self.start = "no"
         self.sendQueue = sendQueue # Send queue is used to send keystrokes to the server
         self.receiveQueue = receiveQueue # Recieve queue is used to recieve game data about players and attacks.
         self.mainThread = threading.Thread(target=self.const_update, args=(sendQueue, receiveQueue))
@@ -33,7 +34,26 @@ class Client():
         # s.settimeout(0.05)
 
         # Recieve the player name ONLY ONCE (The server should already be up before the client is run.)
-        self.playerName = s.recv(32768)
+        name = s.recv(32768)
+        while not name:
+            name = s.recv(32768)
+            time.sleep(0.1)
+
+        self.playerName = name.decode()
+        
+        data = sendQueue.get()
+        while not data:
+            data = sendQueue.get()
+            time.sleep(0.1)
+        
+        s.send(data.encode())
+
+        data = False
+        while not data:
+            data = s.recv(32768)
+            time.sleep(0.1)
+
+        self.start = data
 
         while True:
 
@@ -50,7 +70,7 @@ class Client():
                 s.send(tempJson) 
 
             # Recieve JSON from server
-            server_info = s.recv(16384)
+            server_info = s.recv(32768)
             if server_info:
                 server_info = server_info.decode("utf-8")
                 server_info = json.loads(server_info)
